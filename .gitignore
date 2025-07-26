@@ -1,0 +1,10 @@
+# Ignore PlayCanvas build outputs
+__game-scripts.js
+__loading__.js
+__modules__.js
+__settings__.js
+__start__.js
+playcanvas-stable.min.js
+
+# Ignore generated directories
+/node_modules
