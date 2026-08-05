@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Halı Takip</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0e7490">
+</head>
+<body>
+
+<div id="login" class="login hidden">
+  <div class="login-box">
+    <img src="/icon.svg" alt="" width="64" height="64">
+    <h1>Halı Takip</h1>
+    <p>Devam etmek için PIN girin</p>
+    <input id="pin" type="password" inputmode="numeric" placeholder="PIN" autocomplete="off">
+    <button id="loginBtn" class="btn primary">Giriş</button>
+    <p id="loginErr" class="err"></p>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <div>
+      <h1 id="shopName">Halı Yıkama</h1>
+      <span id="priceInfo" class="muted"></span>
+    </div>
+    <button id="settingsBtn" class="icon-btn" title="Ayarlar">⚙️</button>
+  </header>
+
+  <button id="newOrderToggle" class="btn primary big">+ Yeni Halı Kaydı</button>
+
+  <form id="newOrder" class="card form hidden">
+    <input name="name" placeholder="Müşteri adı soyadı" required>
+    <input name="phone" placeholder="Telefon (05xx xxx xx xx)" inputmode="tel">
+    <div id="carpets"></div>
+    <button type="button" id="addCarpet" class="btn ghost">+ Halı ekle</button>
+    <input name="note" placeholder="Not (isteğe bağlı)">
+    <div class="row">
+      <span id="preview" class="muted"></span>
+      <button type="submit" class="btn primary">Kaydet</button>
+    </div>
+  </form>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="active">Aktif</button>
+    <button class="tab" data-tab="done">Teslim Edilenler</button>
+  </div>
+
+  <div id="orders"></div>
+</div>
+
+<dialog id="settings">
+  <form method="dialog" class="form">
+    <h2>Ayarlar</h2>
+    <label>Dükkan adı <input id="setShop"></label>
+    <label>Metrekare fiyatı (TL) <input id="setPrice" type="number" min="1" step="0.5"></label>
+    <div class="row">
+      <button value="cancel" class="btn ghost">Vazgeç</button>
+      <button value="save" id="saveSettings" class="btn primary">Kaydet</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="/app.js"></script>
+<script>
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
+</script>
+</body>
+</html>

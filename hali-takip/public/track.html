@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Halı Takip</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0e7490">
+</head>
+<body class="track-body">
+
+<div class="track-wrap">
+  <div id="loading" class="track-card"><p class="muted center">Yükleniyor…</p></div>
+
+  <div id="notfound" class="track-card hidden">
+    <h1>😕</h1>
+    <p class="center">Takip kodu bulunamadı.<br>Lütfen linki kontrol edin.</p>
+  </div>
+
+  <div id="result" class="track-card hidden">
+    <div class="track-head">
+      <img src="/icon.svg" width="48" height="48" alt="">
+      <div>
+        <h1 id="tShop"></h1>
+        <p class="muted" id="tHello"></p>
+      </div>
+    </div>
+
+    <div class="track-summary">
+      <div><span class="muted small">Halı</span><b id="tCount"></b></div>
+      <div><span class="muted small">Toplam</span><b id="tM2"></b></div>
+      <div><span class="muted small">Tutar</span><b id="tPrice"></b></div>
+    </div>
+
+    <div id="timeline" class="timeline"></div>
+
+    <p class="muted small center" id="tCode"></p>
+  </div>
+</div>
+
+<script>
+const code = location.pathname.split("/").pop();
+const ICONS = { alindi: "📥", yikaniyor: "🫧", kurutuluyor: "☀️", hazir: "✅", teslim: "🏠" };
+fetch("/api/track/" + encodeURIComponent(code))
+  .then((r) => (r.ok ? r.json() : Promise.reject()))
+  .then((d) => {
+    document.getElementById("loading").classList.add("hidden");
+    document.getElementById("result").classList.remove("hidden");
+    document.getElementById("tShop").textContent = d.shopName;
+    document.getElementById("tHello").textContent = `Merhaba ${d.firstName}, halınızın durumu:`;
+    document.getElementById("tCount").textContent = d.carpetCount + " adet";
+    document.getElementById("tM2").textContent = d.totalM2 + " m²";
+    document.getElementById("tPrice").textContent = d.price + " TL";
+    document.getElementById("tCode").textContent = "Takip kodu: " + d.code;
+    const doneIdx = d.statuses.indexOf(d.status);
+    const hist = Object.fromEntries(d.history.map((h) => [h.status, h.at]));
+    document.getElementById("timeline").innerHTML = d.statuses
+      .map((s, i) => {
+        const done = i <= doneIdx;
+        const current = i === doneIdx;
+        const when = hist[s]
+          ? new Date(hist[s]).toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+          : "";
+        return `<div class="tl-item ${done ? "done" : ""} ${current ? "current" : ""}">
+          <div class="tl-icon">${ICONS[s]}</div>
+          <div class="tl-text"><b>${d.labels[s]}</b><span class="muted small">${when}</span></div>
+        </div>`;
+      })
+      .join("");
+  })
+  .catch(() => {
+    document.getElementById("loading").classList.add("hidden");
+    document.getElementById("notfound").classList.remove("hidden");
+  });
+</script>
+</body>
+</html>
