@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Askı Etiketleri — Halı Takip</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 24px; }
+  .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; }
+  button { padding: 10px 18px; border: 0; border-radius: 10px; background: #0e7490; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .label {
+    border: 3px solid #0e7490;
+    border-radius: 16px;
+    padding: 28px 10px;
+    text-align: center;
+    page-break-inside: avoid;
+  }
+  .label b { font-size: 64px; color: #0e7490; letter-spacing: 2px; }
+  .label span { display: block; color: #64748b; margin-top: 6px; font-size: 13px; }
+  @media print { .toolbar { display: none; } body { margin: 0; } }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button onclick="print()">🖨 Yazdır</button>
+  <span>Bu etiketleri yazdırıp askılıklara asın. Halıyı asarken uygulamada fişi seçip askı düğmesine basmanız yeterli.</span>
+</div>
+<div class="grid" id="grid"></div>
+<script>
+fetch("/api/settings")
+  .then((r) => (r.ok ? r.json() : Promise.reject()))
+  .then((s) => {
+    document.getElementById("grid").innerHTML = (s.racks || [])
+      .map((r) => `<div class="label"><b>${r}</b><span>${s.shopName} · Askı ${r}</span></div>`)
+      .join("");
+  })
+  .catch(() => {
+    document.getElementById("grid").innerHTML = "<p>Giriş gerekli — önce panele giriş yapın.</p>";
+  });
+</script>
+</body>
+</html>

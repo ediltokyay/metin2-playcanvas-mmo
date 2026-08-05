@@ -2,6 +2,9 @@
 /*
  * Halı Takip — halı yıkamacılar için tek ekranlık sipariş takip sistemi.
  * Sıfır bağımlılık: sadece Node.js (v18+) yeterli.  Çalıştır: node server.js
+ *
+ * v2: önceden numaralı fiş desteği, sahada ölçüsüz "Hızlı Alım",
+ *     dükkanda ölçü tamamlama, askı yeri takibi ve fiş numarasıyla halı bulma.
  */
 const http = require("node:http");
 const fs = require("node:fs");
@@ -23,6 +26,7 @@ const STATUS_LABELS = {
   hazir: "Hazır",
   teslim: "Teslim edildi",
 };
+const DEFAULT_RACKS = ["A1", "A2", "A3", "B1", "B2", "B3"];
 
 // ---------- veri ----------
 fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -32,11 +36,26 @@ if (!fs.existsSync(SECRET_FILE)) {
 const SECRET = fs.readFileSync(SECRET_FILE, "utf8").trim();
 
 function loadDb() {
+  let db;
   try {
-    return JSON.parse(fs.readFileSync(DB_FILE, "utf8"));
+    db = JSON.parse(fs.readFileSync(DB_FILE, "utf8"));
   } catch {
-    return { settings: { shopName: "Halı Yıkama", pricePerM2: 70 }, orders: [] };
+    db = { settings: {}, orders: [] };
   }
+  db.settings = {
+    shopName: "Halı Yıkama",
+    pricePerM2: 70,
+    racks: DEFAULT_RACKS,
+    ...db.settings,
+  };
+  // v1 kayıtlarını v2 şemasına taşı (fiş no ve askı alanları)
+  for (const o of db.orders) {
+    for (const c of o.carpets) {
+      if (!("tag" in c)) c.tag = null;
+      if (!("rack" in c)) c.rack = null;
+    }
+  }
+  return db;
 }
 function saveDb(db) {
   const tmp = DB_FILE + ".tmp";
@@ -59,9 +78,8 @@ function isAuthed(req) {
   return cookies.ht_auth === authToken();
 }
 function json(res, code, obj) {
-  const body = JSON.stringify(obj);
   res.writeHead(code, { "Content-Type": "application/json; charset=utf-8" });
-  res.end(body);
+  res.end(JSON.stringify(obj));
 }
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -83,8 +101,7 @@ function normalizePhone(raw) {
   let d = String(raw || "").replace(/\D/g, "");
   if (d.startsWith("0")) d = d.slice(1);
   if (d.length === 10 && d.startsWith("5")) d = "90" + d;
-  if (d.startsWith("90") && d.length === 12) return d;
-  return d; // yabancı numara vs. — olduğu gibi bırak
+  return d;
 }
 function newCode() {
   // karışması kolay harfler (O/0, I/1) hariç
@@ -95,12 +112,36 @@ function newCode() {
   } while (db.orders.some((o) => o.code === code));
   return code;
 }
-function computeTotals(carpets) {
-  const totalM2 = carpets.reduce((s, c) => s + c.m2, 0);
-  return {
-    totalM2: Math.round(totalM2 * 100) / 100,
-    price: Math.round(totalM2 * db.settings.pricePerM2),
-  };
+function nextTag() {
+  let max = 100; // fiş ruloları 101'den başlar
+  for (const o of db.orders)
+    for (const c of o.carpets) if (c.tag && c.tag > max) max = c.tag;
+  return max + 1;
+}
+function isMeasured(o) {
+  return o.carpets.length > 0 && o.carpets.every((c) => c.m2 > 0);
+}
+function recomputeTotals(o) {
+  if (isMeasured(o)) {
+    const totalM2 = o.carpets.reduce((s, c) => s + c.m2, 0);
+    o.totalM2 = Math.round(totalM2 * 100) / 100;
+    o.price = Math.round(totalM2 * db.settings.pricePerM2);
+  } else {
+    o.totalM2 = null;
+    o.price = null;
+  }
+}
+function activeCarpetByTag(tag) {
+  // aynı fiş no eski (teslim edilmiş) işlerde geçmiş olabilir; aktif olan öncelikli,
+  // yoksa en yeni kayıt gösterilir
+  let found = null;
+  for (const o of db.orders) {
+    const c = o.carpets.find((x) => x.tag === tag);
+    if (!c) continue;
+    if (o.status !== "teslim") return { order: o, carpet: c };
+    if (!found) found = { order: o, carpet: c };
+  }
+  return found;
 }
 
 // ---------- API ----------
@@ -125,33 +166,66 @@ const routes = {
 
   "POST /api/settings": async (req, res) => {
     if (!isAuthed(req)) return json(res, 401, { error: "giriş gerekli" });
-    const { shopName, pricePerM2 } = await readBody(req);
+    const { shopName, pricePerM2, racks } = await readBody(req);
     if (shopName) db.settings.shopName = String(shopName).slice(0, 60);
     const p = Number(pricePerM2);
     if (p > 0) db.settings.pricePerM2 = p;
+    if (Array.isArray(racks)) {
+      const clean = racks.map((r) => String(r).trim().toUpperCase().slice(0, 8)).filter(Boolean);
+      if (clean.length) db.settings.racks = [...new Set(clean)];
+    }
     saveDb(db);
     json(res, 200, db.settings);
   },
 
   "GET /api/orders": (req, res) => {
     if (!isAuthed(req)) return json(res, 401, { error: "giriş gerekli" });
-    json(res, 200, { orders: db.orders, settings: db.settings });
+    json(res, 200, { orders: db.orders, settings: db.settings, nextTag: nextTag() });
   },
 
+  // Sipariş oluşturma — iki mod:
+  //  1) Hızlı Alım (sahada): {name, phone, note, quick:{count, startTag}} → ölçüsüz
+  //  2) Detaylı (dükkanda): {name, phone, note, carpets:[{w,h}], startTag?} → ölçülü
   "POST /api/orders": async (req, res) => {
     if (!isAuthed(req)) return json(res, 401, { error: "giriş gerekli" });
     const b = await readBody(req);
     const name = String(b.name || "").trim().slice(0, 80);
     const phone = normalizePhone(b.phone);
-    const carpets = (Array.isArray(b.carpets) ? b.carpets : [])
-      .map((c) => {
-        const w = Number(c.w), h = Number(c.h);
-        const m2 = c.m2 != null ? Number(c.m2) : w * h;
-        return { w: w || null, h: h || null, m2: Math.round(m2 * 100) / 100 };
-      })
-      .filter((c) => c.m2 > 0);
-    if (!name || carpets.length === 0)
-      return json(res, 400, { error: "İsim ve en az bir halı gerekli" });
+    if (!name) return json(res, 400, { error: "Müşteri adı gerekli" });
+
+    let carpets;
+    if (b.quick) {
+      const count = Math.floor(Number(b.quick.count));
+      if (!(count >= 1 && count <= 100))
+        return json(res, 400, { error: "Halı adedi 1-100 arası olmalı" });
+      const startTag = Math.floor(Number(b.quick.startTag)) || nextTag();
+      carpets = Array.from({ length: count }, (_, i) => ({
+        tag: startTag + i, w: null, h: null, m2: null, rack: null,
+      }));
+    } else {
+      const startTag = Math.floor(Number(b.startTag)) || nextTag();
+      carpets = (Array.isArray(b.carpets) ? b.carpets : [])
+        .map((c, i) => {
+          const w = Number(c.w), h = Number(c.h);
+          const m2 = c.m2 != null ? Number(c.m2) : w * h;
+          return {
+            tag: Math.floor(Number(c.tag)) || startTag + i,
+            w: w || null, h: h || null,
+            m2: m2 > 0 ? Math.round(m2 * 100) / 100 : null,
+            rack: null,
+          };
+        })
+        .filter((c) => c.m2 > 0);
+      if (!carpets.length) return json(res, 400, { error: "En az bir halı ölçüsü gerekli" });
+    }
+
+    // fiş no çakışma kontrolü (aktif işler arasında)
+    for (const c of carpets) {
+      const hit = activeCarpetByTag(c.tag);
+      if (hit && hit.order.status !== "teslim")
+        return json(res, 400, { error: `Fiş ${c.tag} şu an ${hit.order.customer.name} işinde kullanılıyor` });
+    }
+
     const now = Date.now();
     const order = {
       id: crypto.randomUUID(),
@@ -162,9 +236,29 @@ const routes = {
       note: String(b.note || "").slice(0, 300),
       status: "alindi",
       history: [{ status: "alindi", at: now }],
-      ...computeTotals(carpets),
     };
+    recomputeTotals(order);
     db.orders.unshift(order);
+    saveDb(db);
+    json(res, 200, { order });
+  },
+
+  // Dükkanda ölçü tamamlama: {carpets:[{tag, w, h}]}
+  "POST /api/orders/:id/measure": async (req, res, params) => {
+    if (!isAuthed(req)) return json(res, 401, { error: "giriş gerekli" });
+    const order = db.orders.find((o) => o.id === params.id);
+    if (!order) return json(res, 404, { error: "sipariş yok" });
+    const b = await readBody(req);
+    for (const m of Array.isArray(b.carpets) ? b.carpets : []) {
+      const c = order.carpets.find((x) => x.tag === Math.floor(Number(m.tag)));
+      if (!c) continue;
+      const w = Number(m.w), h = Number(m.h);
+      if (w > 0 && h > 0) {
+        c.w = w; c.h = h;
+        c.m2 = Math.round(w * h * 100) / 100;
+      }
+    }
+    recomputeTotals(order);
     saveDb(db);
     json(res, 200, { order });
   },
@@ -177,6 +271,7 @@ const routes = {
     if (!order) return json(res, 404, { error: "sipariş yok" });
     order.status = status;
     order.history.push({ status, at: Date.now() });
+    if (status === "teslim") for (const c of order.carpets) c.rack = null; // askı boşaldı
     saveDb(db);
     json(res, 200, { order });
   },
@@ -188,6 +283,60 @@ const routes = {
     db.orders.splice(i, 1);
     saveDb(db);
     json(res, 200, { ok: true });
+  },
+
+  // Askıya asma: {tags:[214,215], rack:"B3"}  (rack:null → askıdan indir)
+  "POST /api/rack": async (req, res) => {
+    if (!isAuthed(req)) return json(res, 401, { error: "giriş gerekli" });
+    const b = await readBody(req);
+    const rack = b.rack == null ? null : String(b.rack).trim().toUpperCase();
+    if (rack && !db.settings.racks.includes(rack))
+      return json(res, 400, { error: `Tanımsız askı: ${rack} (Ayarlar'dan ekleyin)` });
+    const updated = [], missing = [];
+    for (const t of Array.isArray(b.tags) ? b.tags : []) {
+      const tag = Math.floor(Number(t));
+      const hit = activeCarpetByTag(tag);
+      if (hit && hit.order.status !== "teslim") {
+        hit.carpet.rack = rack;
+        updated.push(tag);
+      } else missing.push(tag);
+    }
+    saveDb(db);
+    json(res, 200, { updated, missing });
+  },
+
+  // Halı bul: fiş numarasından müşteri + askı yeri
+  "GET /api/find/:tag": (req, res, params) => {
+    if (!isAuthed(req)) return json(res, 401, { error: "giriş gerekli" });
+    const tag = Math.floor(Number(params.tag));
+    const hit = activeCarpetByTag(tag);
+    if (!hit) return json(res, 404, { error: `Fiş ${tag} kayıtlarda yok` });
+    const { order, carpet } = hit;
+    json(res, 200, {
+      tag,
+      rack: carpet.rack,
+      m2: carpet.m2,
+      status: order.status,
+      statusLabel: STATUS_LABELS[order.status],
+      customer: order.customer.name,
+      phone: order.customer.phone,
+      orderId: order.id,
+      code: order.code,
+      allTags: order.carpets.map((c) => ({ tag: c.tag, rack: c.rack })),
+    });
+  },
+
+  // Askı doluluk haritası
+  "GET /api/racks": (req, res) => {
+    if (!isAuthed(req)) return json(res, 401, { error: "giriş gerekli" });
+    const map = Object.fromEntries(db.settings.racks.map((r) => [r, []]));
+    for (const o of db.orders) {
+      if (o.status === "teslim") continue;
+      for (const c of o.carpets)
+        if (c.rack && map[c.rack])
+          map[c.rack].push({ tag: c.tag, customer: o.customer.name });
+    }
+    json(res, 200, { racks: db.settings.racks, map });
   },
 
   // müşteri takip — halka açık, kişisel veri asgari
@@ -232,7 +381,6 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
   const p = url.pathname;
 
-  // API yönlendirme (parametreli)
   for (const key of Object.keys(routes)) {
     const [method, pattern] = key.split(" ");
     if (req.method !== method) continue;
@@ -255,6 +403,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (p === "/" || p === "/index.html") return serveFile(res, "index.html");
+  if (p === "/raflar") return serveFile(res, "raflar.html");
   if (p.startsWith("/t/")) return serveFile(res, "track.html");
   return serveFile(res, p.slice(1));
 });

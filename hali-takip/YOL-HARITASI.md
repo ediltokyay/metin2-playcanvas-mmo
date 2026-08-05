@@ -57,10 +57,13 @@ işletip orada daha yüksek fiyat çalışmak isteniyor.
 
 (Rekabet araştırması sonrası güncellendi — ayrıntı: REKABET-ANALIZI.md)
 
-1. Hızlı Alım + fiş numarası, giriş yöntemi SESLİ KAYIT (karışma riskini bitirir,
-   rakiplerin hiçbirinde yok — en acil saha problemi + en güçlü farklılaşma)
-2. Askı yeri takibi — Seviye 1: askılık QR'ları (kayıp aramayı bitirir, sıfır maliyet)
-3. Çoklu marka + SMS başlığı (gelir artırıcı)
+1. ✅ YAPILDI (v2) — Hızlı Alım + fiş numarası, sesli kayıt girişli. Ölçüler dükkanda
+   tamamlanıyor, fiyat mesajı ölçüm sonrası gidiyor.
+2. ✅ YAPILDI (v2) — Askı yeri takibi: fiş seç + askı düğmesi, doluluk haritası,
+   "Halı Bul" ekranı, basılabilir askı etiketleri (/raflar). Not: askılık QR okutma
+   yerine tek dokunuş askı seçimi tercih edildi — aynı hız, sıfır karmaşıklık;
+   QR/kamera okutma ihtiyaç doğarsa eklenecek.
+3. Çoklu marka + SMS başlığı (gelir artırıcı) — SIRADAKİ
 4. RFID + Geiger modu "halı bul" (premium paket, Türkiye'de ilk — ölçeklenince)
 
 ## İlke

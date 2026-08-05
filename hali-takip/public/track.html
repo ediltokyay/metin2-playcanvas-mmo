@@ -50,8 +50,8 @@ fetch("/api/track/" + encodeURIComponent(code))
     document.getElementById("tShop").textContent = d.shopName;
     document.getElementById("tHello").textContent = `Merhaba ${d.firstName}, halınızın durumu:`;
     document.getElementById("tCount").textContent = d.carpetCount + " adet";
-    document.getElementById("tM2").textContent = d.totalM2 + " m²";
-    document.getElementById("tPrice").textContent = d.price + " TL";
+    document.getElementById("tM2").textContent = d.totalM2 != null ? d.totalM2 + " m²" : "ölçülüyor";
+    document.getElementById("tPrice").textContent = d.price != null ? d.price + " TL" : "ölçüm sonrası";
     document.getElementById("tCode").textContent = "Takip kodu: " + d.code;
     const doneIdx = d.statuses.indexOf(d.status);
     const hist = Object.fromEntries(d.history.map((h) => [h.status, h.at]));

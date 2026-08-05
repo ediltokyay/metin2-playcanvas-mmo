@@ -5,8 +5,23 @@ halı takip linki gönderir, "halım ne zaman gelecek?" telefonlarını bitirir.
 
 ## Özellikler
 
-- **Yeni halı kaydı:** müşteri adı, telefon, halı ölçüleri (en × boy). Metrekare ve fiyat
-  otomatik hesaplanır (varsayılan 70 TL/m², ayarlardan değiştirilir).
+### Sahada — "Konuş, tak, geç"
+- **Sesli Hızlı Alım:** Adreste halılara önceden numaralı fişleri tak, mikrofon
+  tuşuna bas ve söyle: *"Ayşe Yılmaz, beş halı, fiş iki yüz on dört"*. Uygulama
+  Türkçe sayı sözcüklerini de anlar, kaydı açar. Ses çalışmazsa 3 alanlık mini form
+  (isim + ilk fiş no + adet) 10 saniyede doldurulur. Ölçü ve fiyat dükkanda tamamlanır.
+- **Fiş numarası takibi:** her halının kendi fiş numarası vardır; uygulama sıradaki
+  boş fişi önerir, çakışmaları engeller.
+
+### Dükkanda
+- **Ölçü tamamlama:** "ölçü bekliyor" işaretli kayıtlara en × boy girilir; fiyat
+  hesaplanır ve müşteriye tek tuşla fiyat mesajı gönderilir.
+- **Askı yeri takibi:** halı asılırken fiş(ler) seçilir, askı düğmesine basılır (A1, B3…).
+  Askı doluluk haritası tek bakışta görünür. `/raflar` sayfasından basılabilir askı
+  etiketleri çıkar. Teslim edilen işlerin askıları otomatik boşalır.
+- **Halı Bul:** fiş numarasını yaz → müşteri + askı yeri ekranda. Arama bitti.
+
+### Genel
 - **Durum akışı:** Alındı → Yıkanıyor → Kurutuluyor → Hazır → Teslim edildi. Tek tuşla ilerler.
 - **WhatsApp entegrasyonu:** her aşamada tek tuşla müşteriye hazır Türkçe mesaj +
   takip linki gönderilir (wa.me üzerinden, ek kurulum gerektirmez).
@@ -14,6 +29,9 @@ halı takip linki gönderir, "halım ne zaman gelecek?" telefonlarını bitirir.
   kargo takibi gibi görür. Dükkanı aramasına gerek kalmaz.
 - **PWA:** telefonda "ana ekrana ekle" ile uygulama gibi çalışır.
 - **Sıfır bağımlılık:** sadece Node.js. Veritabanı kurulumu yok (JSON dosyasında saklar).
+
+> Sesli kayıt, tarayıcının yerleşik ses tanımasını kullanır (Chrome/Android'de ücretsiz
+> çalışır, API anahtarı ve ek maliyet yoktur). Desteklemeyen tarayıcıda mini form devrededir.
 
 ## Çalıştırma
 
