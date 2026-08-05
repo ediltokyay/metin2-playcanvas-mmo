@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Halı Takip</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0e7490">
+</head>
+<body class="has-nav">
+
+<div id="login" class="login hidden">
+  <div class="login-box">
+    <img src="/icon.svg" alt="" width="64" height="64">
+    <h1>Halı Takip</h1>
+    <p>Devam etmek için PIN girin</p>
+    <input id="pin" type="password" inputmode="numeric" placeholder="PIN" autocomplete="off">
+    <button id="loginBtn" class="btn primary">Giriş</button>
+    <p id="loginErr" class="err"></p>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <div>
+      <h1 id="shopName">Halı Yıkama</h1>
+      <span id="priceInfo" class="muted"></span>
+    </div>
+    <button id="settingsBtn" class="icon-btn" title="Ayarlar">⚙️</button>
+  </header>
+
+  <!-- ======== GÖRÜNÜM: KAYITLAR ======== -->
+  <section id="view-kayitlar" class="view">
+    <button id="newOrderToggle" class="btn ghost big">+ Detaylı Kayıt (ölçülü, dükkanda)</button>
+
+    <form id="newOrder" class="card form hidden">
+      <input name="name" placeholder="Müşteri adı soyadı" required>
+      <input name="phone" placeholder="Telefon (05xx xxx xx xx)" inputmode="tel">
+      <label class="inline-label">İlk fiş no
+        <input name="startTag" type="number" min="1" inputmode="numeric" class="tag-input">
+      </label>
+      <div id="carpets"></div>
+      <button type="button" id="addCarpet" class="btn ghost">+ Halı ekle</button>
+      <input name="note" placeholder="Not (isteğe bağlı)">
+      <div class="row">
+        <span id="preview" class="muted"></span>
+        <button type="submit" class="btn primary">Kaydet</button>
+      </div>
+    </form>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="active">Aktif</button>
+      <button class="tab" data-tab="done">Teslim Edilenler</button>
+    </div>
+
+    <div id="orders"></div>
+  </section>
+
+  <!-- ======== GÖRÜNÜM: HIZLI ALIM ======== -->
+  <section id="view-alim" class="view hidden">
+    <div class="card center-col">
+      <h2 class="no-margin">Hızlı Alım</h2>
+      <p class="muted center small">Adreste fişleri tak, tek tuşla söyle:<br>
+        <i>"Ayşe Yılmaz, beş halı, fiş iki yüz on dört"</i></p>
+      <button id="micBtn" class="mic-btn" type="button" title="Konuşarak kaydet">🎤</button>
+      <p id="micStatus" class="muted small center">&nbsp;</p>
+      <p id="transcript" class="transcript hidden"></p>
+    </div>
+
+    <form id="quickForm" class="card form">
+      <div class="row-3">
+        <label class="inline-label grow">Müşteri adı
+          <input name="qname" required>
+        </label>
+      </div>
+      <label class="inline-label">Telefon (isteğe bağlı)
+        <input name="qphone" inputmode="tel" placeholder="05xx xxx xx xx">
+      </label>
+      <div class="row-3">
+        <label class="inline-label">İlk fiş no
+          <input name="qtag" type="number" min="1" inputmode="numeric" required>
+        </label>
+        <label class="inline-label">Halı adedi
+          <input name="qcount" type="number" min="1" max="100" inputmode="numeric" required>
+        </label>
+      </div>
+      <p class="muted small" id="quickHint"></p>
+      <button type="submit" class="btn primary big">Kaydı Aç (ölçü dükkanda)</button>
+    </form>
+  </section>
+
+  <!-- ======== GÖRÜNÜM: HALI BUL ======== -->
+  <section id="view-bul" class="view hidden">
+    <div class="card form">
+      <label class="inline-label">Fiş numarası
+        <div class="row">
+          <input id="findTag" type="number" min="1" inputmode="numeric" placeholder="örn. 214">
+          <button id="findBtn" class="btn primary">Bul</button>
+        </div>
+      </label>
+      <div id="findResult"></div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <h2 class="no-margin">Askı Doluluk</h2>
+        <a class="btn ghost" href="/raflar" target="_blank">🖨 Askı etiketleri</a>
+      </div>
+      <div id="rackMap" class="rack-map"></div>
+    </div>
+  </section>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-view="kayitlar">📋<span>Kayıtlar</span></button>
+    <button class="nav-btn" data-view="alim">🎤<span>Hızlı Alım</span></button>
+    <button class="nav-btn" data-view="bul">🔎<span>Halı Bul</span></button>
+  </nav>
+</div>
+
+<dialog id="settings">
+  <form method="dialog" class="form">
+    <h2>Ayarlar</h2>
+    <label>Dükkan adı <input id="setShop"></label>
+    <label>Metrekare fiyatı (TL) <input id="setPrice" type="number" min="1" step="0.5"></label>
+    <label>Askılar (virgülle: A1, A2, B1…) <input id="setRacks"></label>
+    <div class="row">
+      <button value="cancel" class="btn ghost">Vazgeç</button>
+      <button value="save" id="saveSettings" class="btn primary">Kaydet</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Ölçü girme -->
+<dialog id="measureDlg">
+  <form class="form" id="measureForm">
+    <h2>Ölçü Gir</h2>
+    <p class="muted small" id="measureWho"></p>
+    <div id="measureRows"></div>
+    <p class="muted" id="measurePreview"></p>
+    <div class="row">
+      <button type="button" class="btn ghost" onclick="measureDlg.close()">Vazgeç</button>
+      <button type="submit" class="btn primary">Kaydet</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Askıya asma -->
+<dialog id="rackDlg">
+  <div class="form">
+    <h2>Askıya As</h2>
+    <p class="muted small" id="rackWho"></p>
+    <div id="rackTags" class="tag-picker"></div>
+    <div id="rackButtons" class="rack-grid"></div>
+    <div class="row">
+      <button type="button" class="btn ghost" onclick="rackDlg.close()">Kapat</button>
+      <button type="button" class="btn ghost" id="rackClear">Askıdan indir</button>
+    </div>
+  </div>
+</dialog>
+
+<script src="/app.js"></script>
+<script>
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
+</script>
+</body>
+</html>

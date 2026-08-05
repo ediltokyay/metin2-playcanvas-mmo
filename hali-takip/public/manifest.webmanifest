@@ -1,0 +1,13 @@
+{
+  "name": "Halı Takip",
+  "short_name": "Halı Takip",
+  "description": "Halı yıkamacılar için sipariş ve teslimat takip sistemi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#0e7490",
+  "lang": "tr",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
