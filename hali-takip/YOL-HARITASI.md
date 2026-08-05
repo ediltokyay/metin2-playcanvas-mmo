@@ -55,10 +55,13 @@ işletip orada daha yüksek fiyat çalışmak isteniyor.
 
 ## Öncelik sırası
 
-1. Hızlı Alım + fiş numarası (karışma riskini bitirir — en acil saha problemi)
-2. Askı yeri takibi (kayıp aramayı bitirir)
+(Rekabet araştırması sonrası güncellendi — ayrıntı: REKABET-ANALIZI.md)
+
+1. Hızlı Alım + fiş numarası, giriş yöntemi SESLİ KAYIT (karışma riskini bitirir,
+   rakiplerin hiçbirinde yok — en acil saha problemi + en güçlü farklılaşma)
+2. Askı yeri takibi — Seviye 1: askılık QR'ları (kayıp aramayı bitirir, sıfır maliyet)
 3. Çoklu marka + SMS başlığı (gelir artırıcı)
-4. QR kod (konfor, aciliyeti yok)
+4. RFID + Geiger modu "halı bul" (premium paket, Türkiye'de ilk — ölçeklenince)
 
 ## İlke
 
